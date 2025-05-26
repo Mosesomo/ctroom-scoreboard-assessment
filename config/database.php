@@ -2,11 +2,15 @@
 // File: config/database.php
 // Database configuration for Judge Scoreboard Application
 
+require_once __DIR__ . '/../vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv->load();
+
 class Database {
-    private $host = 'localhost';
-    private $db_name = 'scoreboard_db';
-    private $username = 'scoreboard_user';
-    private $password = 'root'; // Change this to your actual password
+    private $host = $_ENV['DB_HOST'];
+    private $db_name = $_ENV['DB_NAME'];
+    private $username = $_ENV['DB_USER'];
+    private $password = $_ENV['DB_PASS'];
     private $conn;
 
     /**

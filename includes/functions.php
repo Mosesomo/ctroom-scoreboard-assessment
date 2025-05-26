@@ -39,15 +39,8 @@ function formatScore($score) {
  */
 function getAllParticipants($pdo) {
     try {
-        $stmt = $pdo->query("SELECT * FROM scoreboard_view ORDER BY name");
-        $participants = $stmt->fetchAll();
-        
-        // Format scores
-        foreach ($participants as &$participant) {
-            $participant['average_score'] = isset($participant['average_score']) ? (float)$participant['average_score'] : 0.00;
-        }
-        
-        return $participants;
+        $stmt = $pdo->query("SELECT id, name, identifier FROM participants ORDER BY name");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch(PDOException $e) {
         error_log("Error fetching participants: " . $e->getMessage());
         return [];
@@ -63,7 +56,15 @@ function getAllParticipants($pdo) {
  */
 function getScoreboardData($pdo, $limit = null, $offset = 0) {
     try {
-        $sql = "SELECT * FROM scoreboard_view ORDER BY average_score DESC, total_score DESC";
+        $sql = "SELECT p.id, p.name, p.identifier,
+                       COALESCE(AVG(s.score), 0) as average_score,
+                       COALESCE(SUM(s.score), 0) as total_score,
+                       COUNT(s.id) as judge_count,
+                       MAX(s.submitted_at) as last_updated
+                FROM participants p
+                LEFT JOIN scores s ON p.id = s.participant_id
+                GROUP BY p.id, p.name, p.identifier
+                ORDER BY average_score DESC, total_score DESC";
         
         if ($limit !== null) {
             $sql .= " LIMIT :limit OFFSET :offset";
@@ -75,13 +76,14 @@ function getScoreboardData($pdo, $limit = null, $offset = 0) {
             $stmt = $pdo->query($sql);
         }
         
-        $results = $stmt->fetchAll();
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Add ranking
+        // Add ranking and format scores
         foreach($results as $index => &$row) {
             $row['rank'] = $offset + $index + 1;
             $row['average_score'] = (float)$row['average_score'];
             $row['total_score'] = (float)$row['total_score'];
+            $row['judge_count'] = (int)$row['judge_count'];
         }
         
         return $results;
@@ -147,7 +149,7 @@ function getJudgeScores($pdo, $judgeId) {
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':judge_id' => $judgeId]);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch(PDOException $e) {
         error_log("Error fetching judge scores: " . $e->getMessage());
         return [];
@@ -164,7 +166,7 @@ function getUserByUsername($pdo, $username) {
     try {
         $stmt = $pdo->prepare("SELECT * FROM users WHERE username = :username");
         $stmt->execute([':username' => $username]);
-        return $stmt->fetch();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     } catch(PDOException $e) {
         error_log("Error fetching user: " . $e->getMessage());
         return null;
@@ -278,6 +280,10 @@ function requireRole($role) {
  * @return string
  */
 function timeAgo($datetime) {
+    if (empty($datetime)) {
+        return 'Never';
+    }
+    
     $time = time() - strtotime($datetime);
     
     if ($time < 60) return 'just now';

@@ -195,7 +195,6 @@ $roles = explode("','", $matches[1]);
                                         <tr>
                                             <th>Name</th>
                                             <th>Identifier</th>
-                                            <th>Avg Score</th>
                                             <th class="text-end">Actions</th>
                                         </tr>
                                     </thead>
@@ -204,11 +203,6 @@ $roles = explode("','", $matches[1]);
                                         <tr>
                                             <td class="small"><?php echo htmlspecialchars($participant['name']); ?></td>
                                             <td class="small"><?php echo htmlspecialchars($participant['identifier']); ?></td>
-                                            <td>
-                                                <span class="badge bg-<?php echo getScoreColor($participant['average_score']); ?> text-dark small">
-                                                    <?php echo number_format($participant['average_score'], 2); ?>
-                                                </span>
-                                            </td>
                                             <td class="text-end">
                                                 <button class="btn btn-sm btn-outline-danger delete-participant py-0 px-2" 
                                                         data-id="<?php echo $participant['id']; ?>"
