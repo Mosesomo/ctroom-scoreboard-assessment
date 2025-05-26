@@ -2,6 +2,8 @@
 
 A modern, responsive web application for managing and displaying competition scores in real-time. Built with PHP, MySQL, and Bootstrap 5.
 
+Live Link: https://judge-scoreboard.infinityfreeapp.com/index.php
+
 ## Features
 
 ### User Management
