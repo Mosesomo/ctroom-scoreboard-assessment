@@ -8,9 +8,7 @@ Live Link: https://judge-scoreboard.infinityfreeapp.com/index.php
 
 ### User Management
 - Multi-role system (Admin, Judge)
-- Secure authentication and authorization
-- User registration and management
-- Password protection and security measures
+
 
 ### Scoring System
 - Real-time score submission
