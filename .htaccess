@@ -1,0 +1,35 @@
+# Enable URL rewriting
+RewriteEngine On
+
+# Prevent directory listing
+Options -Indexes
+
+# Handle security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Protect sensitive files
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# PHP error handling
+php_flag display_errors off
+php_value error_reporting E_ALL
+
+# Protect config and includes directories
+<FilesMatch "^(config|includes|sql)/.*$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Allow only specific file types
+<FilesMatch "(?i)^.*\.(php|html|css|js|jpg|jpeg|png|gif|ico|svg)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
