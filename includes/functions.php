@@ -39,8 +39,15 @@ function formatScore($score) {
  */
 function getAllParticipants($pdo) {
     try {
-        $stmt = $pdo->query("SELECT * FROM participants ORDER BY name");
-        return $stmt->fetchAll();
+        $stmt = $pdo->query("SELECT * FROM scoreboard_view ORDER BY name");
+        $participants = $stmt->fetchAll();
+        
+        // Format scores
+        foreach ($participants as &$participant) {
+            $participant['average_score'] = isset($participant['average_score']) ? (float)$participant['average_score'] : 0.00;
+        }
+        
+        return $participants;
     } catch(PDOException $e) {
         error_log("Error fetching participants: " . $e->getMessage());
         return [];
@@ -50,17 +57,29 @@ function getAllParticipants($pdo) {
 /**
  * Get scoreboard data with rankings
  * @param PDO $pdo
+ * @param int $limit Number of records per page
+ * @param int $offset Starting position
  * @return array
  */
-function getScoreboardData($pdo) {
+function getScoreboardData($pdo, $limit = null, $offset = 0) {
     try {
         $sql = "SELECT * FROM scoreboard_view ORDER BY average_score DESC, total_score DESC";
-        $stmt = $pdo->query($sql);
+        
+        if ($limit !== null) {
+            $sql .= " LIMIT :limit OFFSET :offset";
+            $stmt = $pdo->prepare($sql);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
+        } else {
+            $stmt = $pdo->query($sql);
+        }
+        
         $results = $stmt->fetchAll();
         
         // Add ranking
         foreach($results as $index => &$row) {
-            $row['rank'] = $index + 1;
+            $row['rank'] = $offset + $index + 1;
             $row['average_score'] = (float)$row['average_score'];
             $row['total_score'] = (float)$row['total_score'];
         }
@@ -82,10 +101,23 @@ function getScoreboardData($pdo) {
  */
 function submitScore($pdo, $judgeId, $participantId, $score) {
     try {
-        $sql = "INSERT INTO scores (judge_id, participant_id, score) 
-                VALUES (:judge_id, :participant_id, :score)
-                ON DUPLICATE KEY UPDATE 
-                score = :score, submitted_at = CURRENT_TIMESTAMP";
+        // First check if score exists
+        $stmt = $pdo->prepare("SELECT id FROM scores WHERE judge_id = :judge_id AND participant_id = :participant_id");
+        $stmt->execute([
+            ':judge_id' => $judgeId,
+            ':participant_id' => $participantId
+        ]);
+        $existingScore = $stmt->fetch();
+        
+        if ($existingScore) {
+            // Update existing score
+            $sql = "UPDATE scores SET score = :score, submitted_at = CURRENT_TIMESTAMP 
+                    WHERE judge_id = :judge_id AND participant_id = :participant_id";
+        } else {
+            // Insert new score
+            $sql = "INSERT INTO scores (judge_id, participant_id, score) 
+                    VALUES (:judge_id, :participant_id, :score)";
+        }
         
         $stmt = $pdo->prepare($sql);
         return $stmt->execute([
@@ -157,7 +189,6 @@ function createUser($pdo, $username, $password, $role = 'judge') {
             ':role' => $role
         ]);
     } catch(PDOException $e) {
-        error_log("Error creating user: " . $e->getMessage());
         return false;
     }
 }
@@ -177,7 +208,6 @@ function createParticipant($pdo, $name, $identifier) {
             ':identifier' => $identifier
         ]);
     } catch(PDOException $e) {
-        error_log("Error creating participant: " . $e->getMessage());
         return false;
     }
 }
@@ -256,5 +286,22 @@ function timeAgo($datetime) {
     if ($time < 2592000) return floor($time/86400) . ' days ago';
     
     return date('M j, Y', strtotime($datetime));
+}
+
+/**
+ * Get score color based on score value
+ * @param float $score
+ * @return string
+ */
+function getScoreColor($score) {
+    if ($score >= 90) {
+        return 'success';
+    } elseif ($score >= 75) {
+        return 'primary';
+    } elseif ($score >= 60) {
+        return 'warning';
+    } else {
+        return 'danger';
+    }
 }
 ?>

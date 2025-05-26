@@ -25,18 +25,12 @@ function authenticateUser($pdo, $username, $password) {
             $_SESSION['role'] = $user['role'];
             $_SESSION['login_time'] = time();
             
-            // Log successful login
-            logActivity("User {$username} logged in successfully");
-            
             return true;
         }
         
-        // Log failed login attempt
-        logActivity("Failed login attempt for username: {$username}", 'WARNING');
         return false;
         
     } catch(Exception $e) {
-        error_log("Authentication error: " . $e->getMessage());
         return false;
     }
 }
@@ -45,16 +39,11 @@ function authenticateUser($pdo, $username, $password) {
  * Logout user
  */
 function logoutUser() {
-    $username = $_SESSION['username'] ?? 'Unknown';
-    
     // Clear all session variables
     session_unset();
     
     // Destroy the session
     session_destroy();
-    
-    // Log logout
-    logActivity("User {$username} logged out");
     
     // Redirect to login page
     header('Location: login.php?message=logged_out');
@@ -73,7 +62,6 @@ function isValidSession() {
     
     // Check session timeout (optional - 2 hours)
     if (isset($_SESSION['login_time']) && (time() - $_SESSION['login_time']) > 7200) {
-        logActivity("Session expired for user: " . $_SESSION['username'], 'INFO');
         return false;
     }
     

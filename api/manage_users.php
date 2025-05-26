@@ -5,31 +5,7 @@
 header('Content-Type: application/json');
 
 require_once '../includes/functions.php';
-require_once '../includes/auth.php';
 require_once '../config/database.php';
-
-// Require admin authentication
-requireAdmin();
-
-// Verify request method
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Method not allowed'
-    ]);
-    exit;
-}
-
-// Verify CSRF token
-if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
-    http_response_code(403);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Invalid CSRF token'
-    ]);
-    exit;
-}
 
 try {
     // Get database connection
@@ -45,9 +21,15 @@ try {
             $password = $_POST['password'];
             $role = $_POST['role'];
             
+            // Get available roles from database
+            $rolesStmt = $pdo->query("SHOW COLUMNS FROM users WHERE Field = 'role'");
+            $rolesData = $rolesStmt->fetch();
+            preg_match("/^enum\(\'(.*)\'\)$/", $rolesData['Type'], $matches);
+            $validRoles = explode("','", $matches[1]);
+            
             // Validate role
-            if (!in_array($role, ['judge', 'admin'])) {
-                throw new Exception('Invalid role');
+            if (!in_array($role, $validRoles)) {
+                throw new Exception('Invalid role. Must be one of: ' . implode(', ', $validRoles));
             }
             
             // Create user
@@ -84,9 +66,11 @@ try {
             
             // Create participant
             if (createParticipant($pdo, $name, $identifier)) {
+                $participantId = $pdo->lastInsertId();
                 echo json_encode([
                     'success' => true,
-                    'message' => 'Participant created successfully'
+                    'message' => 'Participant created successfully',
+                    'participant_id' => $participantId
                 ]);
             } else {
                 throw new Exception('Failed to create participant');
@@ -114,9 +98,6 @@ try {
     }
     
 } catch (Exception $e) {
-    // Log error
-    error_log("Error managing users: " . $e->getMessage());
-    
     // Return error response
     http_response_code(400);
     echo json_encode([
